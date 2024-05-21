@@ -1,7 +1,9 @@
 ---
-title: "microcourse"
-output: html_document
-date: "2024-05-16"
+title: "Workshop 1"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-05-22"
 ---
 
 ```{r setup, include=FALSE}
@@ -37,10 +39,147 @@ summary(cars)
 Otherwise, welcome to R Markdown! For more details on using R Markdown see <http://rmarkdown.rstudio.com>. Markdown provides simple formatting syntax to easily create coding files that can be made into HTML, PDF, or Word docs. If you click **Knit** up above, a finished file in your selected file format will be created. 
 
 
-# BasicBasics
+
+# Learning objectives
+This week, our independent learning objectives were **Getting started with software and tools**
+2. Fundamental concepts in data management
+3. Introduction to R, R Markdown, and Qualtrics
+4. Setting up the working environment: creating an RMarkdown template
+  + Cheatsheets (go to File > Help > Cheatsheets) E.g. https://rmarkdown.rstudio.com/lesson-15.html 
+5. How to import data into R
+
+You were meant to follow [link] (https://rladiessydney.org/courses/ryouwithme/01-basicbasics-0/)
+
+As their borrowed comic from @realpython illustrates, you are never really fully going to learn a programming language. There is always more to go. BUT what matters is that you know how to break things down into plain language and you can infer based on context, just like learning how to read when you were a kid. We also, in that process, learn that we have our own styles. Some of us are also a bit more pithy, while others are prosaic. Early on when you learned to write, you probably lacked the vocabulary to say everything quickly, so you spoke in roundabout sentences. Then you got efficient with more vocabulary. *There is of course the other end of the scale where you become highly educated and speak with excessively long words and phrases* 
+
+Today in this workshop, we are going to look at what the R-Ladies Sydney group did in BasicBasics and I'm going to share some things I personally do and do not like. The idea is that this is **my** recipe book of code, drawing inspiration from multiple others and making it into something that makes sense for me. As they say in their footnore in BasicBasics 1: **Because these are opinions, you can probably find people who disagree. To each her own and all that! ^** 
+
+
+# BasicBasics tutorial
+
+The first thing I always do in an RMarkdown file is load in my libraries. I usually know most of the packages I will need, so I load those. If I realize I need more later, I just scroll back to this chunk and add it and run that line. Note that while tidyverse covers dplyr, it has packages with conflicting functions also so I call dplyr again to force all conflicts to become errors. When I use those functions in code, e.g. select(), I will usually get an error and to fix it just type dplyr::select(). This works for all conflicting functions, just specify the package and then type colon twice, so dplyr::'function'. 
+
+##Set-up
+
+```{r libraries}
+library(tidyverse)
+library(dplyr)
+library(here) #They use this, but I don't really think it's necessary and actually adds extraneous text and reduces flexibility
+library(skimr)
+```
+
+Then I load in my data with a brief explainer. For this, I will just copy and paste the R-Ladies blurb: 
+> *"This dataset is compiled by the NSW Office of Environment and Heritage contains the enterococci counts in water samples obtained from – you guessed it – Sydney beaches as part of the Beachwatch Water Quality Program! The dataset we’ll be working with is current as of October 13th 2018.
+
+Let's highlight what works about this description. 
+* Source: NSW Office of Environment and Heritage
+* Description of variables 
+* Description of collection process (if we need details, we know to google the BeachWatch Water Quality Program)
+* Time span: they provide the end data
+
+What they missed:
+* **COMPLETE TIME SPAN** Yes this dataset ends Oct 13 2018, but when did it begin? What was the frequency of collections? This is useful so that people can make sure they load in the right data to work with this code. It also will help you revisit your old files and pull aspects. 
+* List of variables and their types (this can be fine if we are specifying and setting them in a chunk later)
+* Anything else?
+
+Ok, let's load it in.
+```{r}
+beaches <- read.csv("C:/Users/izzyj/Desktop/data_bootcamp/RYouWithMe/sydneybeaches.csv")
+```
+
+This is different to their method of read.csv(here("data","filepath")). Why? Because they used here to replace C:/Users/izzyj/Desktop/data_bootcamp/RYouWithMe/ with the wd. This is fine if you use one directory and are perfect at file management. I have yet to meet such a person but I am sure they exist.  
+
+## Explore the data
+
+This chunk opens a tab that lets you view the data. I don't want this to print in my final file, so look at the chunk option I set.
+```{r include=FALSE}
+view(beaches)
+```
+
+Dim gives me the dataframe dimensions. Str gives me a summary of the structure, which means it lists n of observations, the number of and names of variables, their type, and a preview of their values. 
+```{r}
+dim(beaches)
+str(beaches)
+```
+This prints the first couple of rows of the data in a nice table that is clickable.
+```{r}
+head(beaches)
+```
+The last couple of rows...
+```{r}
+tail(beaches)
+```
+This is pretty much the same as str. A dbl data type is a numeric one. It has some additional meaning but do not sweat that for now.
+```{r}
+glimpse(beaches)
+```
+Summary() will summarize all the numeric columns. 
+```{r}
+summary(beaches)
+```
+Skim is going to quickly give you an overview of the numeric columns and provides more than just summary alone. The n_missing and hist columns are exceptionally useful for rapidly identifying data that is missing or violates assumptions of normality and thus might require transformations or some other accounting for.
+```{r}
+skim(beaches)
+```
+
+
+# Our own data!
+
+I am going to generate a fake dataset but follow along with your own and SHARE it to your branch on github when you are done.
+
+```{r}
+set.seed(123)
+
+#Define n for transactions
+n <- 100
+
+date <- sample(seq.Date(as.Date('2024-01-01'), by = 'day', length.out = 100), n, replace = TRUE)
+time <- format(as.POSIXct(runif(n, 0, 86400), origin = '1970-01-01', tz = "GMT"), "%H:%M:%S")
+volume <- sample(1:100, n, replace = TRUE)
+amt_paid <- round(runif(n, 10, 500), 2)
+reg_no <- 1:n
+
+transactions <- data.frame(
+  date = date,
+  time = time,
+  volume = volume,
+  amt_paid = amt_paid,
+  reg_no = reg_no
+)
+
+```
+I'll save it so you can see it too.
+
+```{r}
+write.csv(transactions, "C:/Users/izzyj/Desktop/data_bootcamp/izzy/transactions.csv")
+```
 
 
 
+**Description of my data**
+Source: randomly generated using set.seed(123)
+Temporal extent: first 100 days of 2024, beginning with 01-01
+Temporal resolution: 1 second
+
+5 variables, as seen below. Date, time, volume in L, amt_paid in KES, and a reg_no, which is the registration number of the vehicle used to transport the water.
+
+```{r}
+dim(transactions)
+str(transactions)
+```
+
+```{r}
+head(transactions)
+tail(transactions)
+```
+
+## Descriptive and summary stats
+
+```{r}
+summary(transactions)
+```
 
 
-
+```{r}
+skim(transactions)
+```
