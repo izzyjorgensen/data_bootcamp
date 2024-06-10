@@ -80,13 +80,13 @@ names(beaches)
 What if I have just way too many columns and I only need a few? 
 ```{r}
 simplebeaches <- select(beaches, council, site, beachbugs)
-simplebeaches
+head(simplebeaches)
 ```
 
 And I want to reorder them but still retain the other columns?
 ```{r}
 orderedbeaches <- select(beaches, council, site, beachbugs, everything())
-orderedbeaches
+head(orderedbeaches)
 ```
 
 
