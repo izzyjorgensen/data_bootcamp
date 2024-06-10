@@ -60,7 +60,8 @@ Title cases, this weird name: Enterococci..cfu.100ml.
 
 She changes toupper first, but realistically tolower is what you will probably use. Upper case can get used, but it is typically used to distinguish transformed versions of variables like beta versus BETA and BETA would often be a mean of beta.
 ```{r}
-select_all(beaches, tolower)
+beaches <- select_all(beaches, tolower)
+head(beaches)
 ```
 
 ```{r}
@@ -128,7 +129,7 @@ write.csv(cleanbeaches, "C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/clean
 ### Question A: Which beach has the highest recorded bacteria levels?
 
 ```{r}
-cleanbeaches %>% arrange(desc(beachbugs)) #desc for descending order OR you can just do arrange(-beachbugs) which what I typically do. 
+#cleanbeaches %>% arrange(desc(beachbugs)) #desc for descending order OR you can just do arrange(-beachbugs) which what I typically do. 
 ```
 
 
@@ -203,7 +204,7 @@ newbeaches <- cleanbeaches %>%
   separate(date, c("day","month","year"), remove = FALSE) %>%
   unite(council_site, council:site)
   
-newbeaches
+head(newbeaches)
 ```
 
 Now let's make new variables by computing using mutate()
@@ -213,7 +214,7 @@ newbeaches <- newbeaches %>%
   mutate(beachbugsdiff = beachbugs - log(beachbugs)) %>% #Create new numeric variable
   mutate(buggier = beachbugs > mean(beachbugs, na.rm = TRUE)) #create new logical variable
 
-newbeaches
+head(newbeaches)
   
 ```
 
