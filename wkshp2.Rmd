@@ -1,0 +1,287 @@
+---
+title: "wkshp2"
+output: html_document
+date: "2024-06-11"
+---
+
+# Set-up
+
+## Library check-out
+```{r}
+library(janitor)
+library(tidyverse)
+library(dplyr) #I called dplyr explicitly too but it is contained in the tidyverse
+library(skimr)
+# library(here) I have used a hashtag to comment this out because I don't use it (but they do)
+```
+
+## Colour palettes
+```{r}
+#Next week!
+```
+
+
+
+
+# RYouWithMe
+
+This is a workflow originating [here](https://rladiessydney.org/courses/ryouwithme/02-cleanitup-1/). It has been adjusted where noted to suit my workflow, which you may not agree with or like. That is your choice as the analyst!
+
+
+So here is a point they make that I have also been making. "She recommends that you using a labelling system (for files, but the same principles apply for variable names) that makes everything readable by both the computer and by a human (right-now you, but also future you, and anyone else who might interact with your data!)."
+
+Short, without special characters or spaces, in lower case, is THE SAFEST BET. You need to be be able to quickly type things out, use files across multiple operating systems, and prevent ANY FILE CORRUPTIONS that derive from bad file names or variable names. 
+
+## Loading in
+```{r}
+beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/sydneybeaches.csv")
+```
+
+Everything from before in one run-able chunk rather than the highlighting process they used: 
+```{r}
+view(beaches)
+dim(beaches)
+str(beaches)
+glimpse(beaches)
+head(beaches)
+tail(beaches)
+summary(beaches)
+skim(beaches)
+```
+
+
+## Cleaning up
+```{r}
+glimpse(beaches)
+```
+
+What do we notice? 
+Title cases, this weird name: Enterococci..cfu.100ml.
+
+She changes toupper first, but realistically tolower is what you will probably use. Upper case can get used, but it is typically used to distinguish transformed versions of variables like beta versus BETA and BETA would often be a mean of beta.
+```{r}
+select_all(beaches, tolower)
+```
+
+```{r}
+?clean_names #explore the full functionality of this function by running this line
+
+cleanbeaches <- clean_names(beaches) #they do this to create a new R object. This can clutter your environment so I usually only do this for major changes or risky changes. Instead, I just assign it to the original df.They get to this point later on in the tutorial.
+
+beaches <- clean_names(beaches)
+names(beaches)
+```
+This is definitely better enterococci_cfu_100ml but still lots of room for error so let's shorten to beachbugs.
+
+```{r}
+beaches <- rename(beaches, beachbugs = enterococci_cfu_100ml) #newname = oldname
+names(beaches)
+```
+What if I have just way too many columns and I only need a few? 
+```{r}
+simplebeaches <- select(beaches, council, site, beachbugs)
+simplebeaches
+```
+
+And I want to reorder them but still retain the other columns?
+```{r}
+orderedbeaches <- select(beaches, council, site, beachbugs, everything())
+orderedbeaches
+```
+
+
+## Piping
+Dreaded for no reason. It's actually pretty simple to learn and makes coding faster and cleaner but it's got an additional barrier to entry that can make it offputting. 
+
+As the R-Ladies put it: 
+
+my_data %>% 
+  do_this_thing() %>%
+  now_do_that_thing() %>%
+  and_one_more()
+  
+You are **piping** the data through multiple steps. 
+
+Load it back in fresh
+```{r}
+beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/sydneybeaches.csv")
+```
+
+```{r}
+cleanbeaches <- beaches %>%
+    clean_names() %>%
+  rename(beachbugs = enterococci_cfu_100ml) %>% #kinda tricky because you have to anticipate the output of clean_names above, so easier as you get more experienced
+  select(council, site, beachbugs, everything())
+```
+
+```{r}
+head(cleanbeaches)
+```
+
+```{r}
+write.csv(cleanbeaches, "C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/cleanbeaches.csv")
+```
+
+
+## Filter, Arrange, Group_by, Summarise
+
+### Question A: Which beach has the highest recorded bacteria levels?
+
+```{r}
+cleanbeaches %>% arrange(desc(beachbugs)) #desc for descending order OR you can just do arrange(-beachbugs) which what I typically do. 
+```
+
+
+```{r}
+worstcoogee <-  cleanbeaches %>% filter(site == "Coogee Beach") %>%
+  arrange(-beachbugs)
+worstcoogee
+```
+
+Now in the tutorial, they originally typed "Coogee" and it didn't work. That is because "==" returns exact matches only. If you get a 0 x whatever data array, it probably is for this reason in your own data. To CHECK for this error you can run this: 
+```{r}
+unique(cleanbeaches$site)
+```
+And immediately see that it is Coogee Beach, not Coogee, without opening the dataframe and manually searching like they do. 
+
+
+
+
+### Question B: Does Coogee or Bondi have more extreme bacteria levels? Which beach has the worst bacteria levels on average?
+
+```{r}
+coogee_bondi <- cleanbeaches %>% 
+  filter(site %in% c("Coogee Beach","Bondi Beach")) %>%
+  arrange(-beachbugs)
+
+coogee_bondi
+```
+
+Let's get summaries for certain groups removing our NA values
+```{r}
+cleanbeaches %>%
+  filter(site %in% c("Coogee Beach","Bondi Beach")) %>%
+  group_by(site) %>%
+  summarise(maxbugs = max(beachbugs, na.rm = TRUE),
+            meanbugs = mean(beachbugs, na.rm = TRUE),
+            medianbugs = median(beachbugs, na.rm = TRUE),
+            sdbugs = sd(beachbugs, na.rm = TRUE))
+```
+
+And just all the beaches too
+```{r}
+cleanbeaches %>%
+  group_by(site) %>%
+  summarise(maxbugs = max(beachbugs, na.rm = TRUE),
+            meanbugs = mean(beachbugs, na.rm = TRUE),
+            medianbugs = median(beachbugs, na.rm = TRUE),
+            sdbugs = sd(beachbugs, na.rm = TRUE))
+```
+
+
+
+### Question C: Which council does the worst job at keeping their beaches clean?
+```{r}
+cleanbeaches %>% distinct(council) #same as unique()
+```
+
+```{r}
+cleanbeaches %>% 
+  group_by(council, site) %>%
+  summarise(maxbugs = max(beachbugs, na.rm = TRUE),
+            meanbugs = mean(beachbugs, na.rm = TRUE),
+            medianbugs = median(beachbugs, na.rm = TRUE),
+            sdbugs = sd(beachbugs, na.rm = TRUE))
+  
+```
+
+##Separate, Unite, Mutate
+
+Let's make new variables using existing columns and data
+```{r}
+newbeaches <- cleanbeaches %>% 
+  separate(date, c("day","month","year"), remove = FALSE) %>%
+  unite(council_site, council:site)
+  
+newbeaches
+```
+
+Now let's make new variables by computing using mutate()
+```{r}
+newbeaches <- newbeaches %>%
+  mutate(logbeachbugs = log(beachbugs)) %>% #log transform
+  mutate(beachbugsdiff = beachbugs - log(beachbugs)) %>% #Create new numeric variable
+  mutate(buggier = beachbugs > mean(beachbugs, na.rm = TRUE)) #create new logical variable
+
+newbeaches
+  
+```
+
+## Spread, Gather, Pivot
+
+**Tidy data** is data where: 
+- Each variable forms a column
+- Each observation forms a row
+- Each type of observational unit forms a table
+
+Data is usually manually entered in 'wide format' with observations spread across several columns, which is hard for R to work with because it is messy i.e. the opposite of tidy. We want to put it into long using R. DO NOT DO PASTE TRANSPOSE IN EXCEL. sydneybeaches is ALREADY in long format. 
+
+Practice changing to wide
+```{r}
+wide_beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/beachbugs_wide.csv")
+```
+
+```{r}
+long_beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/beachbugs_long.csv")
+```
+
+```{r}
+wide_beaches <- clean_names(wide_beaches)
+wide_beaches
+```
+
+Gather needs the key, the value, and the range of the columns you want to gather. The key is the name of the column you are creating, the value is the name of the column with your data in it for a distinct value. 
+
+They called explicit column names in their code, but I prefer to use the column numbers for simplicity. 
+
+```{r}
+new_long_beaches <- wide_beaches %>% gather(key = site, value = beachbugs, 2:12)
+head(new_long_beaches)
+```
+
+```{r}
+new_wide_beaches <- new_long_beaches %>% spread(key = site, value = beachbugs)
+head(new_wide_beaches)
+```
+
+Alternatives using pivot:
+```{r}
+?pivot_longer
+```
+
+
+```{r}
+new_long_beaches <- wide_beaches %>%
+  pivot_longer(names_to = "site", 
+               values_to = "buglevels", 
+               2:12)
+
+head(new_long_beaches)
+```
+
+```{r}
+?pivot_wider
+```
+
+```{r}
+new_wide_beaches <- new_long_beaches %>%
+  pivot_wider(names_from = site,
+              values_from = buglevels
+              )
+
+head(new_wide_beaches)
+```
+
+
+
+
