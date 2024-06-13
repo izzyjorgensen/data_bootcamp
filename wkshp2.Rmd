@@ -34,7 +34,7 @@ Short, without special characters or spaces, in lower case, is THE SAFEST BET. Y
 
 ## Loading in
 ```{r}
-beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/sydneybeaches.csv")
+beaches <- read.csv("/Users/isabeljorgensen/Desktop/data_bootcamp/data_bootcamp/RYouWithMe/sydneybeaches.csv")
 ```
 
 Everything from before in one run-able chunk rather than the highlighting process they used: 
@@ -80,7 +80,7 @@ names(beaches)
 ```
 What if I have just way too many columns and I only need a few? 
 ```{r}
-simplebeaches <- select(beaches, council, site, beachbugs)
+simplebeaches <- select(beaches, 3,4,8)
 head(simplebeaches)
 ```
 
@@ -88,6 +88,10 @@ And I want to reorder them but still retain the other columns?
 ```{r}
 orderedbeaches <- select(beaches, council, site, beachbugs, everything())
 head(orderedbeaches)
+```
+```{r}
+write.csv(x,".csv") #this saves all the steps above to a new csv file in case something happens down below
+# beaches <- read.csv(".csv") this is commented out for now, but this is the emergency button in case something goes wrong below and you need to load in the dataset without repeating all the steps above this
 ```
 
 
@@ -105,7 +109,10 @@ You are **piping** the data through multiple steps.
 
 Load it back in fresh
 ```{r}
-beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/sydneybeaches.csv")
+beaches <- read.csv("/Users/isabeljorgensen/Desktop/data_bootcamp/data_bootcamp/RYouWithMe/sydneybeaches.csv")
+```
+```{r}
+head(beaches)
 ```
 
 ```{r}
@@ -120,7 +127,7 @@ head(cleanbeaches)
 ```
 
 ```{r}
-write.csv(cleanbeaches, "C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/cleanbeaches.csv")
+write.csv(cleanbeaches, "/Users/isabeljorgensen/Desktop/data_bootcamp/data_bootcamp/RYouWithMe/cleanbeaches.csv")
 ```
 
 
@@ -136,12 +143,15 @@ write.csv(cleanbeaches, "C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/clean
 ```{r}
 worstcoogee <-  cleanbeaches %>% filter(site == "Coogee Beach") %>%
   arrange(-beachbugs)
-worstcoogee
+head(worstcoogee)
+tail(worstcoogee)
 ```
 
 Now in the tutorial, they originally typed "Coogee" and it didn't work. That is because "==" returns exact matches only. If you get a 0 x whatever data array, it probably is for this reason in your own data. To CHECK for this error you can run this: 
 ```{r}
 unique(cleanbeaches$site)
+unique(cleanbeaches$beach_id)
+unique(cleanbeaches$council)
 ```
 And immediately see that it is Coogee Beach, not Coogee, without opening the dataframe and manually searching like they do. 
 
@@ -152,7 +162,7 @@ And immediately see that it is Coogee Beach, not Coogee, without opening the dat
 
 ```{r}
 coogee_bondi <- cleanbeaches %>% 
-  filter(site %in% c("Coogee Beach","Bondi Beach")) %>%
+  filter(site %in% c("Coogee Beach" ,"Bondi Beach")) %>%
   arrange(-beachbugs)
 
 coogee_bondi
@@ -176,7 +186,17 @@ cleanbeaches %>%
   summarise(maxbugs = max(beachbugs, na.rm = TRUE),
             meanbugs = mean(beachbugs, na.rm = TRUE),
             medianbugs = median(beachbugs, na.rm = TRUE),
-            sdbugs = sd(beachbugs, na.rm = TRUE))
+            sdbugs = sd(beachbugs, na.rm = TRUE)
+           )
+
+# Count observations per unique site
+site_counts <- cleanbeaches %>%
+  group_by(site) %>%
+  summarise(count = n())
+
+# View the result
+print(site_counts)
+
 ```
 
 
@@ -200,6 +220,8 @@ cleanbeaches %>%
 
 Let's make new variables using existing columns and data
 ```{r}
+?separate()
+
 newbeaches <- cleanbeaches %>% 
   separate(date, c("day","month","year"), remove = FALSE) %>%
   unite(council_site, council:site)
@@ -209,6 +231,7 @@ head(newbeaches)
 
 Now let's make new variables by computing using mutate()
 ```{r}
+
 newbeaches <- newbeaches %>%
   mutate(logbeachbugs = log(beachbugs)) %>% #log transform
   mutate(beachbugsdiff = beachbugs - log(beachbugs)) %>% #Create new numeric variable
@@ -229,11 +252,11 @@ Data is usually manually entered in 'wide format' with observations spread acros
 
 Practice changing to wide
 ```{r}
-wide_beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/beachbugs_wide.csv")
+wide_beaches <- read.csv("/Users/isabeljorgensen/Desktop/data_bootcamp/data_bootcamp/RYouWithMe/RYouWithMe/beachbugs_wide.csv")
 ```
 
 ```{r}
-long_beaches <- read.csv("C:/Users/izzyj/Downloads/data_bootcamp/RYouWithMe/beachbugs_long.csv")
+long_beaches <- read.csv("/Users/isabeljorgensen/Desktop/data_bootcamp/data_bootcamp/RYouWithMe/RYouWithMe/beachbugs_long.csv")
 ```
 
 ```{r}
