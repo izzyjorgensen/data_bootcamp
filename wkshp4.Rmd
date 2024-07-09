@@ -1,0 +1,489 @@
+---
+title: "wkshp4"
+author: "IJorgensen"
+date: "2024-07-09"
+output: html_document
+---
+
+# Libraries
+```{r}
+library(ggplot2)
+library(dplyr)
+library(MASS)
+library(ggcorrplot)
+```
+
+
+Need an R Markdown cheatsheet? Go to Help > Cheatsheets or this [link](https://rmarkdown.rstudio.com/lesson-15.html) 
+
+# A gentle introduction to linear regression in R
+
+They did not provide a dataset but they did provide the head of it and a summary of each variable. I am going to go ask ChatGPT for some help with the following prompt:
+
+>Hi, can you help me generate a random dataset for housing in Boston? 
+
+>The head of the dataset should be:       CRIM ZN INDUS CH   NOX    RM AGE    DIS R TAX PRAT      B LSTAT MEDV
+ 1 0.12744  0  6.91  0 0.448 6.770 2.9 5.7209 3 233 17.9 385.41  4.84 26.6
+ 2 0.07896  0 12.83  0 0.437 6.273 6.0 4.2515 5 398 18.7 394.92  6.78 24.1
+ 3 0.19539  0 10.81  0 0.413 6.245 6.2 5.2873 4 305 19.2 377.17  7.54 23.4
+ 4 0.15936  0  6.91  0 0.448 6.211 6.5 5.7209 3 233 17.9 394.46  7.44 24.7
+ 5 0.14150  0  6.91  0 0.448 6.169 6.6 5.7209 3 233 17.9 383.37  5.81 25.3
+ 6 0.08826  0 10.81  0 0.413 6.417 6.6 5.2873 4 305 19.2 383.73  6.72 24.2
+
+>And here is a summary:        CRIM                ZN             INDUS             CH         
+  Min.   : 0.00632   Min.   :  0.00   Min.   : 0.46   Min.   :0.00000  
+  1st Qu.: 0.08204   1st Qu.:  0.00   1st Qu.: 5.19   1st Qu.:0.00000  
+  Median : 0.25651   Median :  0.00   Median : 9.69   Median :0.00000  
+  Mean   : 3.61352   Mean   : 11.36   Mean   :11.14   Mean   :0.06917  
+  3rd Qu.: 3.67708   3rd Qu.: 12.50   3rd Qu.:18.10   3rd Qu.:0.00000  
+  Max.   :88.97620   Max.   :100.00   Max.   :27.74   Max.   :1.00000  
+       NOX               RM             AGE              DIS        
+  Min.   :0.3850   Min.   :3.561   Min.   :  2.90   Min.   : 1.130  
+  1st Qu.:0.4490   1st Qu.:5.886   1st Qu.: 45.02   1st Qu.: 2.100  
+  Median :0.5380   Median :6.208   Median : 77.50   Median : 3.207  
+  Mean   :0.5547   Mean   :6.285   Mean   : 68.57   Mean   : 3.795  
+  3rd Qu.:0.6240   3rd Qu.:6.623   3rd Qu.: 94.08   3rd Qu.: 5.188  
+  Max.   :0.8710   Max.   :8.780   Max.   :100.00   Max.   :12.127  
+        R               TAX             PRAT             B         
+  Min.   : 1.000   Min.   :187.0   Min.   :12.60   Min.   :  0.32  
+  1st Qu.: 4.000   1st Qu.:279.0   1st Qu.:17.40   1st Qu.:375.38  
+  Median : 5.000   Median :330.0   Median :19.05   Median :391.44  
+  Mean   : 9.549   Mean   :408.2   Mean   :18.46   Mean   :356.67  
+  3rd Qu.:24.000   3rd Qu.:666.0   3rd Qu.:20.20   3rd Qu.:396.23  
+  Max.   :24.000   Max.   :711.0   Max.   :22.00   Max.   :396.90  
+      LSTAT            MEDV      
+  Min.   : 1.73   Min.   : 5.00  
+  1st Qu.: 6.95   1st Qu.:17.02  
+  Median :11.36   Median :21.20  
+  Mean   :12.65   Mean   :22.53  
+  3rd Qu.:16.95   3rd Qu.:25.00  
+  Max.   :37.97   Max.   :50.00
+
+
+```{r}
+set.seed(123) #this is for reproducibility in a random selection/generation process and is used also for splitting into testing and training datasets
+```
+
+```{r}
+n <- 506
+# Generate random data for each column based on summary statistics
+data <- tibble(
+  CRIM = rgamma(n, shape = 1, scale = 3.61352),
+  ZN = rbeta(n, shape1 = 2, shape2 = 10) * 100,
+  INDUS = rbeta(n, shape1 = 2, shape2 = 5) * 27.74,
+  CH = rbinom(n, size = 1, prob = 0.06917),
+  NOX = rbeta(n, shape1 = 2, shape2 = 5) * 0.871,
+  RM = rnorm(n, mean = 6.285, sd = 0.7),
+  AGE = runif(n, min = 2.9, max = 100),
+  DIS = runif(n, min = 1.13, max = 12.127),
+  R = sample(1:24, n, replace = TRUE),
+  TAX = runif(n, min = 187, max = 711),
+  PRAT = runif(n, min = 12.6, max = 22),
+  B = rnorm(n, mean = 356.67, sd = 91),
+  LSTAT = runif(n, min = 1.73, max = 37.97),
+  MEDV = runif(n, min = 5, max = 50)
+)
+
+# Ensure columns follow their respective distributions
+data <- data %>%
+  mutate(
+    ZN = ifelse(ZN > 100, 100, ZN),
+    NOX = ifelse(NOX > 0.871, 0.871, NOX),
+    RM = ifelse(RM > 8.78, 8.78, ifelse(RM < 3.561, 3.561, RM)),
+    B = ifelse(B < 0.32, 0.32, ifelse(B > 396.9, 396.9, B))
+  )
+
+# View the first few rows of the dataset
+head(data)
+```
+```{r}
+summary(data)
+```
+That doesn't look right at all.
+
+>That gave a summary with vastly different numbers
+
+```{r}
+set.seed(123) # needs to be done again or can result in divergences between runs
+```
+
+```{r}
+# Generate random data for each column based on summary statistics
+data <- tibble(
+  CRIM = rgamma(n, shape = 1, scale = 3.61352),
+  ZN = rbeta(n, shape1 = 1.5, shape2 = 10) * 100,
+  INDUS = rbeta(n, shape1 = 2, shape2 = 5) * 27.74,
+  CH = rbinom(n, size = 1, prob = 0.06917),
+  NOX = rbeta(n, shape1 = 2, shape2 = 5) * 0.871,
+  RM = rnorm(n, mean = 6.285, sd = 0.7),
+  AGE = runif(n, min = 2.9, max = 100),
+  DIS = runif(n, min = 1.13, max = 12.127),
+  R = sample(1:24, n, replace = TRUE),
+  TAX = runif(n, min = 187, max = 711),
+  PRAT = runif(n, min = 12.6, max = 22),
+  B = rnorm(n, mean = 356.67, sd = 91),
+  LSTAT = runif(n, min = 1.73, max = 37.97),
+  MEDV = runif(n, min = 5, max = 50)
+)
+
+# Ensure columns follow their respective distributions
+data <- data %>%
+  mutate(
+    ZN = ifelse(ZN > 100, 100, ZN),
+    NOX = ifelse(NOX > 0.871, 0.871, NOX),
+    RM = ifelse(RM > 8.78, 8.78, ifelse(RM < 3.561, 3.561, RM)),
+    B = ifelse(B < 0.32, 0.32, ifelse(B > 396.9, 396.9, B))
+  )
+
+# View the first few rows of the dataset
+head(data)
+# View the summary of the dataset
+summary(data)
+```
+
+It's still not perfect, but we will move on. Pretty clear example that ChatGPT also cannot perfectly do anything requested of it. 
+
+
+Simple check for correlation between AGE and MEDV
+```{r}
+cor(data$AGE, data$MEDV)
+```
+
+Scatterplot.
+
+Note that our data is very different to theirs and pretty evenly and randomly dispersed. We expect this because we generated a random dataset. Their correlation was -0.377 and ours is only -0.0486, so barely anything. 
+```{r}
+ggplot(data, aes(AGE, MEDV)) + geom_point()
+```
+
+```{r}
+linear.model = lm(MEDV ~ AGE, data = data)
+print(linear.model)
+```
+Our linear model detects even less of a trend. 
+
+$$M$\hat{E}$DV=28.54073 - 0.02319 * AGE$$
+
+```{r}
+ggplot(data, aes(AGE, MEDV)) + 
+  geom_point() + 
+  geom_smooth(method = lm)
+```
+
+Evaluate the model:
+```{r}
+summary(linear.model)
+```
+P-value is not significant for AGE (p = 0.275). The model accounts for, at most, 0.2366% of the observed variation (multiple R-squared = 0.002366) and more conservatively even less at just 0.0387% (adjusted R-squared = 0.000387). Adjusted R-squared is adjusting for number of predictors, penalizing models with more predictors (i.e., less parsimonious). Our residual standard error is 13.45.
+
+## Looking at a new predictor
+
+The idea here is we first look to see if it relates to MEDV on its own and then add it to the previous model in an attempt to explain more of the data.
+```{r}
+cor(data$RM, data$MEDV)
+```
+
+```{r}
+ggplot(data, aes(RM, MEDV)) +
+  geom_point() +
+  geom_smooth(method = lm)
+```
+
+```{r}
+mlinear.model = lm(MEDV ~ AGE + RM, data = data)
+
+summary(mlinear.model)
+```
+Not significant in our example.
+
+Let's build a new model using ALL variables.
+```{r}
+mlinear02.model = lm(MEDV ~ ., data = data)
+
+summary(mlinear02.model)
+```
+In our example, none of them are signficant. 
+
+In theirs, they have moderate and high significance for some but not all. 
+
+The idea here is now to find the most parsimonious model: a model that describes more than others but with less variables (i.e. simpler). Note that it is does not need to describe the **most** but just **more with less than most**. 
+
+create a linear model with only the significant variables. (For us this would actually be none but here were theres)
+```{r}
+mlinear03.model = lm(MEDV ~ CRIM + ZN + CH + NOX + RM + DIS + R + TAX + PRAT + B + LSTAT, data = data)
+
+
+summary(mlinear03.model)
+```
+
+# Datacamp tutorial
+
+This tutorial is found [here](https://www.datacamp.com/tutorial/multiple-linear-regression-r-tutorial)
+
+
+**The Multiple Linear Regression Assumptions**
+An important aspect when building a multiple linear regression model is to make sure that the following key assumptions are met.
+
+1. The **residual values are normally distributed**. This can be checked by either using a normal probability plot or a histogram.
+2. There must be a **linear relationship between the dependent and the independent variables**. This can be illustrated by scatterplots showing a linear or curvilinear relationship.
+3. Then, **multicollinearity** is another assumption, meaning that the independent variables are not highly correlated with each other. Multicollinearity makes it difficult to identify which variables better explain the dependent variable. This assumption is verified by computing a matrix of Pearson’s bivariate correlations among all the independent variables. If there is no collinearity in the data, then all the values should be less than 0.8. 
+4. The **homoscedasticity** assumes that the variance of the residual errors is similar across the value of each independent variable. One way of checking that is through a plot of the predicted values against the standardized residual values to see if the points are equally distributed across all the values of the independent variables.
+
+
+## Download and call in the dataset
+
+Download the data [here](https://www.kaggle.com/datasets/royjafari/customer-churn?resource=download)
+
+```{r}
+churn_data <- read.csv("/Users/isabeljorgensen/Desktop/data_bootcamp/churn_data.csv")
+```
+
+```{r}
+# Look at the first 6 observations
+head(churn_data)
+# Check the dimension
+dim(churn_data)
+```
+## Clean data
+
+```{r}
+# Change the column names
+names(churn_data) = gsub(" ", "_", names(churn_data))
+
+head(churn_data)
+```
+For me this doesn't work because I don't have spaces, but I have ".."
+Let's ask our R Wizard:
+>Hi, I am now working with a new dataset of customer calls. I have column headings that use title casing and have ".." instead of a space. I would like to make it lower case and swap ".." with "_". The dataframe is called churn_data.
+
+```{r}
+# Get the column names
+colnames(churn_data) <- colnames(churn_data) %>%
+  str_replace_all("\\.\\.", "_") %>%  # Replace ".." with "_"
+  tolower()  # Convert to lowercase
+
+# Verify the changes
+colnames(churn_data)
+```
+I still have . so I actually now take what I learned and apply it on my own.
+
+```{r}
+colnames(churn_data) <- colnames(churn_data) %>%
+  str_replace_all("\\.\\.", "_") %>%  # Replace ".." with "_"
+  str_replace_all("\\.","_") %>%
+  tolower()  # Convert to lowercase
+
+head(churn_data)
+```
+Perfect!
+
+## Linear model
+
+The tutorial uses title case but I use lower. I don't want to manually fix it. Also notice complaints is called complains in the dataframe, so fix that yourself in the code too.
+
+>Hey, can you keep this code exactly as is but make it all lower case? *paste code*
+
+```{r}
+# fit the multiple linear regression model
+cust_value_model = lm(formula = customer_value ~ call_failure + 
+
+                     complains + subscription_length + charge_amount +    
+
+                     seconds_of_use + frequency_of_use + frequency_of_sms +
+                    distinct_called_numbers + age_group + tariff_plan +
+                    status + age, data = churn_data)
+
+```
+
+## Check assumptions
+
+### ASSUMPTION 1: Are our residuals normally distributed?
+```{r}
+# Get the model residuals
+model_residuals = cust_value_model$residuals
+
+# Plot the result
+hist(model_residuals)
+```
+This is a left-skewed, making the normality of residuals dubious (although this honestly isn't that bad). We check another plot.
+
+```{r}
+# Plot the residuals
+qqnorm(model_residuals)
+# Plot the Q-Q line
+qqline(model_residuals)
+
+```
+They don't follow a straight line. They also aren't equally distributed on both sides of the qqline, showing instead a visible S-curve. Residuals are **NOT** normally distributed so we violate Assumption 1.
+
+### ASSUMPTION 3: are our independent variables correlated with one another?
+
+Drop the dependent variable and run:
+```{r}
+# Remove the Customer Value column
+reduced_data <- subset(churn_data, select = -customer_value)
+
+# Compute correlation at 2 decimal places
+corr_matrix = round(cor(reduced_data), 2)
+
+# Compute and show the  result
+ggcorrplot(corr_matrix, hc.order = TRUE, type = "lower",
+          lab = TRUE)
+```
+Yes, there are strong correlations between age and age group (duh) and frequency of use and second of use (duh) because they are computed from each other. We pick one of the two, and this will really depend on what you want to know and how your sample sizes are distributed. For their example, they drop age_group and second_of_use.
+
+## Back to linear model, model 2 this time
+Again,
+
+>lower case for this too **paste code**
+
+```{r}
+# fit the second multiple linear regression model
+second_model = lm(formula = customer_value ~ call_failure + complains +
+                  subscription_length + charge_amount +
+                  frequency_of_use + frequency_of_sms +
+                  distinct_called_numbers + tariff_plan +
+                  status + age, data = churn_data)
+```
+
+### ASSUMPTION 1
+
+```{r}
+# Get the model residuals
+model_residuals = second_model$residuals
+
+# Plot the result
+hist(model_residuals)
+```
+
+```{r}
+# Plot the residuals
+qqnorm(model_residuals)
+# Plot the Q-Q line
+qqline(model_residuals)
+```
+More values are on the straight line but honestly not many. For the example, this is fine, but realistically we need to transform the data most likely. Had we checked assumption 2 with a scatterplot, we might have caught that also.
+
+## But which model is better?
+
+Test the models for signficant differences using ANOVA
+```{r}
+anova(cust_value_model, second_model)
+```
+Highly significant so the second model is significantly better. Let's also check their model summaries.
+
+```{r}
+summary(cust_value_model)
+summary(second_model)
+```
+The second model has a lower R-squared which technically makes it worse...but also can we justify using a model that violates the multicollinearity assumption? Not really. The reasons are more complex really than this current lesson BUT multicollinearity should really only be ignored for dummy variables and interactions between predictors. 
+
+I want to try now an AIC test like the tutorial suggests, but they didn't give me code and I have some idea where to start because **I googled it first, and then checked source documentation**. Now I want ChatGPT to *help* with implementation.
+
+>How can I implement thsi? The logical next step of this analysis is to remove the non-significant variables and fit the model to see if the performance improves.
+
+>Another strategy for efficiently choosing relevant predictors is through the Akaike Information Criteria (AIC). 
+
+>It starts with all the features, then gradually drops the worst predictors one at a time until it finds the best model. The smaller the AIC score, the better the model. This can be done using the stepAIC() function.
+
+```{r}
+# Fit the initial multiple linear regression model
+initial_model = lm(formula = customer_value ~ call_failure + 
+                   complains + subscription_length + charge_amount +    
+                   seconds_of_use + frequency_of_use + frequency_of_sms +
+                   distinct_called_numbers + age_group + tariff_plan +
+                   status + age, data = churn_data)
+
+# Perform stepwise model selection using AIC
+final_model = stepAIC(initial_model, direction = "both")
+
+# Summary of the final model
+summary(final_model)
+```
+
+```{r}
+# Compare AIC of initial and final models
+cat("AIC of initial model:", AIC(initial_model), "\n")
+cat("AIC of final model:", AIC(final_model), "\n")
+
+```
+Final model is barely better but did drop age_group and frequency of use.
+
+### Simple residuals check (assumptions check)
+```{r}
+plot(final_model)
+```
+### Detailed with ggplotting
+
+#### ASSUMPTION 1
+```{r}
+ggplot(final_model, aes(sample = .stdresid)) +
+  stat_qq() +
+  stat_qq_line() +
+  labs(title = "Normal Q-Q",
+       x = "Theoretical Quantiles",
+       y = "Standardized Residuals") +
+  theme_minimal()
+```
+Honestly bad, but this data is not linear.
+
+#### ASSUMPTION 4: do my residuals vs. fitted look like confetti?
+
+```{r}
+ggplot(final_model, aes(.fitted, .resid)) +
+  geom_point() +
+  geom_smooth(se = FALSE, color = "red") +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values",
+       y = "Residuals") +
+  theme_minimal()
+```
+Bad.
+```{r}
+ggplot(final_model, aes(.fitted, sqrt(abs(.stdresid)))) +
+  geom_point() +
+  geom_smooth(se = FALSE, color = "red") +
+  labs(title = "Scale-Location",
+       x = "Fitted Values",
+       y = "Square Root of Standardized Residuals") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(final_model, aes(.hat, .stdresid)) +
+  geom_point(aes(size = .cooksd)) +
+  geom_smooth(se = FALSE, color = "red") +
+  labs(title = "Residuals vs Leverage",
+       x = "Leverage",
+       y = "Standardized Residuals") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+## Visualise results
+
+GGally let's us compare each predictor to the response in a matrix.
+```{r}
+# Install and load GGally package if not already installed
+if(!require(GGally)) {
+  install.packages("GGally")
+  library(GGally)
+}
+
+# Select relevant columns for the scatter plot matrix
+selected_columns <- churn_data %>%
+  dplyr::select(customer_value, call_failure, complains, subscription_length, charge_amount,
+         seconds_of_use, frequency_of_use, frequency_of_sms, distinct_called_numbers,
+         age_group, tariff_plan, status, age)
+
+# Create a scatter plot matrix
+ggpairs(selected_columns, 
+        title = "Scatter Plot Matrix for Churn Data",
+        lower = list(continuous = wrap("points", alpha = 0.3)),
+        upper = list(continuous = wrap("cor", size = 4)),
+        diag = list(continuous = wrap("densityDiag", alpha = 0.5))) +
+  theme_minimal()
+
+```
+
